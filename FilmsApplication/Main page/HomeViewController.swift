@@ -10,32 +10,34 @@ import UIKit
 
 class HomeViewController: UIViewController {
     
-    let networkManager = NetworkManger.shared
+    let networkManager = NetworkManager.shared
     
-    // MARK: titles
-    let popMoviesTitle: UILabel = {
-        let title = UILabel()
-        title.text = "Popular Movies"
-        title.font = .systemFont(ofSize: 30, weight: .bold)
-        title.translatesAutoresizingMaskIntoConstraints = false
-        return title
+    let seeAllButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("see all", for: .normal)
+        button.setTitleColor(.systemBlue, for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
     }()
     
-    // films from API
+    
     var topFilms = [Film]() {
         didSet {
-            collectionView.reloadData()
+            self.collectionView.reloadData()
         }
     }
     
-    // Create a UICollectionView with a horizontal scroll layout
+    
+    // Create a UICollectionView with a vertical scroll layout
     private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
-        layout.itemSize = CGSize(width: 150, height: 250) // Set the desired fixed size
+        
         
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
+        
+        
         collectionView.backgroundColor = .systemBackground
         collectionView.showsVerticalScrollIndicator = false
         
@@ -49,58 +51,95 @@ class HomeViewController: UIViewController {
         return collectionView
     }()
     
-
     
-    // MARK: main function
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        seeAllButton.removeFromSuperview()
+    }
+    
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setupNavigationBar()
+        
+    }
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         
+        setupUI()
         
         networkManager.getTopMovies() { result in
             switch result {
             case .success(let success):
-                self.topFilms.append(contentsOf: success.films ?? [])
+                self.topFilms = success.films ?? []
                 
             case .failure(let failure):
                 print(failure)
             }
         }
-
-        
-        view.addSubview(popMoviesTitle)
-        view.addSubview(collectionView)
-        
-        
-        setupLayout()
-    }
-    
-    // MARK: setting constraints
-    func setupLayout() {
-        
-        
-        NSLayoutConstraint.activate([
-            
-            popMoviesTitle.topAnchor.constraint(equalTo: view.topAnchor, constant: 70),
-            popMoviesTitle.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-  
-            
-            collectionView.topAnchor.constraint(equalTo: popMoviesTitle.bottomAnchor, constant: 20),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            collectionView.heightAnchor.constraint(equalToConstant: view.frame.size.height - 215)
-            
-        ])
     }
     
 }
 
+// MARK: setup UI
+extension HomeViewController {
+    func setupUI() {
+        setupViews()
+        setupLayout()
+        
+    }
+    
+    func setupViews() {
+        view.addSubview(collectionView)
+        addButtonActions()
+    }
+    
+    func addButtonActions() {
+        seeAllButton.addTarget(self, action: #selector(goToAllMovies), for: .touchUpInside)
+    }
+    
+    func setupLayout() {
+        setCollectionViewConstraints()
+    }
+    
+    func setCollectionViewConstraints() {
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            collectionView.rightAnchor.constraint(equalTo: view.rightAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+    
+    func setupNavigationBar() {
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        navigationItem.title = "Popular movies"
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: seeAllButton)
+    }
+    
+}
+
+// MARK: button actions
+extension HomeViewController {
+    
+    @objc func goToAllMovies() {
+        let newController = AllMoviesViewController()
+        newController.title = "Movies"
+        navigationController?.pushViewController(newController, animated: true)
+        
+    }
+}
+
 
 // MARK: collection of films
-extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
+extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+    
+    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        print(topFilms.count)
         return topFilms.count
     }
     
@@ -110,9 +149,6 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         }
         
         let film = topFilms[indexPath.item]
-        if film.nameRu == nil {
-            return UICollectionViewCell()
-        }
         
         cell.configure(with: film)
         
@@ -127,4 +163,19 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         navigationController?.pushViewController(openCell, animated: true)
         
     }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
+        return 0.0
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        
+        return CGSize(width: self.collectionView.bounds.width/2, height: self.collectionView.bounds.height/2.8)
+    }
+    
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
+        return 15
+    }
+    
 }

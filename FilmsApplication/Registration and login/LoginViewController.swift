@@ -23,54 +23,60 @@ final class LoginViewController: UIViewController {
         setupView()
     }
     
+    
     func goToMainPage() {
-        
+
         let tab = UITabBarController()
 
         let home = UINavigationController(rootViewController: HomeViewController())
         home.title = "Home"
+
         let search = UINavigationController(rootViewController: SearchViewController())
         search.title = "Search"
+
         let profile = UINavigationController(rootViewController: ProfileViewController())
         profile.title = "Profile"
 
-
+        let liked = UINavigationController(rootViewController: LikedFilmsViewController())
+        liked.title = "Liked"
 
         tab.tabBar.tintColor = .black
 
-        tab.setViewControllers([home, search, profile], animated: false)
+        tab.setViewControllers([home, search, liked,  profile], animated: false)
 
         guard let items = tab.tabBar.items else { return }
 
-        let images = ["house", "magnifyingglass.circle", "person.circle"]
+        let images = ["house", "magnifyingglass.circle", "heart", "person.circle"]
 
-        for i in 0...2 {
+        for i in 0...images.count-1 {
             items[i].image = UIImage(systemName: images[i])
+            
         }
 
         tab.modalPresentationStyle = .fullScreen
         
         navigationController?.present(tab, animated: true)
+
     }
-    
+        
     //MARK: Private methods
 
     @objc private func signInButtonClicked() {
-        guard let password = passwordTextField.text, !password.isEmpty, let email = emailTextField.text, !email.isEmpty else {
-            showAlertWithWarning(TextsEnum.fillFields.rawValue)
-            return
-        }
-
-        Auth.auth().signIn(withEmail: email, password: password) { (result, error) in
-            if error == nil {
+//        guard let password = passwordTextField.text, !password.isEmpty, let email = emailTextField.text, !email.isEmpty else {
+//            showAlertWithWarning(TextsEnum.fillFields.rawValue)
+//            return
+//        }
+//
+//        Auth.auth().signIn(withEmail: email, password: password) { (result, error) in
+//            if error == nil {
                 self.goToMainPage()
-            } else if password.count < 6 {
-                self.showAlertWithWarning("Password length should be 6 or more")
-            } else {
-                self.showAlertWithWarning(TextsEnum.invalidData.rawValue)
-            }
-        }
-        
+//            } else if password.count < 6 {
+//                self.showAlertWithWarning("Password length should be 6 or more")
+//            } else {
+//                self.showAlertWithWarning(TextsEnum.invalidData.rawValue)
+//            }
+//        }
+
     }
     
     

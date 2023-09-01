@@ -34,8 +34,10 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         static let movieDescriptionLabelBottomAnchorValue = -100.0
     }
     
-    let networkService = NetworkManger()
+    let networkService = NetworkManager()
     var webView: WKWebView!
+    
+    
 
     // MARK: Private Visual Components
 
@@ -83,8 +85,18 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         return movieRatingLabel
     }()
     
+    private let starButton: UIButton = {
+       let button = UIButton()
+        button.setImage(UIImage(systemName: "star"), for: .normal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
     var movieTitle = ""
     var movieURl = ""
+    
+    var selectFilm = Film.example
+    
 
     // MARK: - Public Properties
 
@@ -113,15 +125,38 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         webView.allowsBackForwardNavigationGestures = true
     }
     
+    @objc private func starButtonAction() {
+        starButton.setImage(UIImage(systemName: "star.fill"), for: .normal)
+        
+        for film in LikedFilmsDataController.shared.getFilms() {
+            if selectFilm.filmId == film.filmId {
+                showAlert()
+                return 
+            }
+        }
+        
+        LikedFilmsDataController.shared.createFilm(topFilm: selectFilm)
+
+    }
+    
+    func showAlert() {
+        let pickedFilmAlert = UIAlertController(title: "Warning", message: "You have already chosen this film", preferredStyle: .alert)
+        pickedFilmAlert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        present(pickedFilmAlert, animated: true)
+    }
+    
     func configure(movie: Film) {
+
+        selectFilm = movie
+
         navigationItem.title = movie.nameRu ?? ""
         movieTitle = movie.nameRu ?? ""
-        
+
         DispatchQueue.global().async { [weak self] in
             if let data = try? Data(contentsOf: URL(string: movie.posterUrl!)!) {
                 if let image = UIImage(data: data) {
                     DispatchQueue.main.async {
-                        self!.movieImageView.image = image
+                        self?.movieImageView.image = image
                     }
                 }
             }
@@ -139,6 +174,52 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         }
     }
     
+    func configure(id: Int) {
+
+        
+
+//        navigationItem.title = movie.nameRu ?? ""
+//        movieTitle = movie.nameRu ?? ""
+//
+//        DispatchQueue.global().async { [weak self] in
+//            if let data = try? Data(contentsOf: URL(string: movie.posterUrl!)!) {
+//                if let image = UIImage(data: data) {
+//                    DispatchQueue.main.async {
+//                        self!.movieImageView.image = image
+//                    }
+//                }
+//            }
+//        }
+
+        networkService.fetchSimilarMovies(idMovie: id) { [weak self] result in
+            switch result {
+            case .success(let movieDetails):
+                self?.movieRatingLabel.text = "Рейтинг: \(movieDetails.ratingImdb ?? 0.0)"
+                self?.movieDescriptionLabel.text = movieDetails.shortDescription
+                self?.movieURl = movieDetails.webUrl ?? ""
+                self?.navigationItem.title = movieDetails.nameRu ?? ""
+                self?.movieTitle = movieDetails.nameRu ?? ""
+                DispatchQueue.global().async { [weak self] in
+                    let urlString = movieDetails.posterURL
+                    guard let urlString = urlString, let url = URL(string: urlString) else {
+                        return
+                    }
+                    if let data = try? Data(contentsOf: url) {
+                        if let image = UIImage(data: data) {
+                            DispatchQueue.main.async {
+                                self?.movieImageView.image = image
+                            }
+                        }
+                    }
+                }
+                
+            case .failure(let failure):
+                print("error")
+            }
+        }
+    }
+    
+    
     private func initMethods() {
         setupScrollView()
         setupView()
@@ -153,6 +234,7 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         createScrollViewConstraints()
         createRatingLabelConstraints()
         createMovieDescriptionLabelConstraints()
+        createStarButtonConstraints()
     }
     
 
@@ -177,8 +259,9 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         ).isActive = true
         movieImageView.widthAnchor.constraint(equalToConstant: view.bounds.width).isActive = true
         movieImageView.topAnchor.constraint(equalTo: scrollView.topAnchor).isActive = true
-        movieImageView.heightAnchor.constraint(equalToConstant: CGFloat(Constants.movieImageViewHeightAnchorValue))
-            .isActive = true
+        movieImageView.heightAnchor.constraint(equalToConstant: CGFloat(Constants.movieImageViewHeightAnchorValue)).isActive = true
+        
+        print(view.frame.width)
     }
 
     private func createScrollViewConstraints() {
@@ -220,13 +303,21 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
         movieRatingLabel.heightAnchor.constraint(equalToConstant: CGFloat(Constants.movieRatingHeightAnchorValue))
             .isActive = true
     }
+    
+    private func createStarButtonConstraints() {
+        NSLayoutConstraint.activate([
+            starButton.topAnchor.constraint(equalTo: watchButton.bottomAnchor, constant: CGFloat(Constants.movieRatingTopAnchorValue)),
+            starButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+        ])
+    }
 
     private func setupScrollView() {
         scrollView.addSubview(watchButton)
         scrollView.addSubview(movieImageView)
         scrollView.addSubview(movieDescriptionLabel)
         scrollView.addSubview(movieRatingLabel)
-        
+        scrollView.addSubview(starButton)
     }
 
     private func setupView() {
@@ -235,11 +326,13 @@ final class DetailViewController: UIViewController, WKNavigationDelegate {
     }
 
     private func setupNavigationBar() {
+        navigationItem.largeTitleDisplayMode = .never
         let shareButton = UIButton(type: .system)
         shareButton.setImage(UIImage(systemName: Constants.shareButtonImageName), for: .normal)
         shareButton.tintColor = UIColor(named: Constants.defaultOrange)
         shareButton.addTarget(self, action: #selector(shareButtonAction), for: .touchUpInside)
         watchButton.addTarget(self, action: #selector(watchButtonAction), for: .touchUpInside)
+        starButton.addTarget(self, action: #selector(starButtonAction), for: .touchUpInside)
         navigationItem.rightBarButtonItem = UIBarButtonItem(customView: shareButton)
     }
 }
